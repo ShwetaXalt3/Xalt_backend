@@ -44,6 +44,43 @@ const transporter = nodemailer.createTransport({
 });
  
 // Form Submission Route
+// app.post("/submit", async (req, res) => {
+//   const { name, email, organization, details } = req.body;
+ 
+//   if (!name || !email) {
+//     return res.status(400).json({ error: "Name and email are required." });
+//   }
+ 
+//   try {
+ 
+//      const newSubmission = new FormSubmission({ name, email, organization, details });
+//     await newSubmission.save();
+ 
+//     // 1. Send confirmation email to user (awaited)
+//     const mailOptionsUser = {
+//       from: "sales.xaltanalytics@gmail.com",
+//       to: email,
+//       subject: "Thank you for your submission",
+//       text: `Hello ${name},\n\nThank you for contacting us. \nOur team will reach out to you shortly.\n\nBest regards,\nXalt Analytics`
+//     };
+ 
+//     await transporter.sendMail(mailOptionsUser);
+ 
+//     // 2. Send internal notification email (non-blocking)
+//     transporter.sendMail({
+//       from: "sales.xaltanalytics@gmail.com",
+//       to: email,
+//       text: `Hello ${name},\n\nThank you for contacting us. \nOur team will reach out to you shortly.\n\nBest regards,\nXalt Analytics`
+//     }).catch(err => console.error("Error sending internal email:", err));
+ 
+//     return res.status(200).json({ message: "Email sent successfully." });
+//   } catch (error) {
+//     console.error("Error:", error);
+//     return res.status(500).json({ error: "An error occurred while sending the email." });
+//   }
+// });
+ 
+ 
 app.post("/submit", async (req, res) => {
   const { name, email, organization, details } = req.body;
  
@@ -52,34 +89,35 @@ app.post("/submit", async (req, res) => {
   }
  
   try {
- 
-     const newSubmission = new FormSubmission({ name, email, organization, details });
+    // 1. Save to MongoDB
+    const newSubmission = new FormSubmission({ name, email, organization, details });
     await newSubmission.save();
  
-    // 1. Send confirmation email to user (awaited)
-    const mailOptionsUser = {
+    // 2. Respond immediately to client
+    res.status(200).json({ message: "Submission successful. Email will be sent shortly." });
+ 
+    // 3. Send emails in background (non-blocking)
+    const userMail = {
       from: "sales.xaltanalytics@gmail.com",
       to: email,
       subject: "Thank you for your submission",
-      text: `Hello ${name},\n\nThank you for contacting us. \nOur team will reach out to you shortly.\n\nBest regards,\nXalt Analytics`
+      text: `Hello ${name},\n\nThank you for contacting us. Our team will reach out to you shortly.\n\nBest regards,\nXalt Analytics`
     };
  
-    await transporter.sendMail(mailOptionsUser);
+    // const internalMail = {
+    //   from: "sales.xaltanalytics@gmail.com",
+    //   to: email,
+    //   text: `Name: ${name}\nEmail: ${email}\nOrganization: ${organization || "N/A"}\nDetails: ${details || "N/A"}`
+    // };
  
-    // 2. Send internal notification email (non-blocking)
-    transporter.sendMail({
-      from: "sales.xaltanalytics@gmail.com",
-      to: email,
-      text: `Hello ${name},\n\nThank you for contacting us. \nOur team will reach out to you shortly.\n\nBest regards,\nXalt Analytics`
-    }).catch(err => console.error("Error sending internal email:", err));
+    transporter.sendMail(userMail).catch(err => console.error("User email error:", err));
+    // transporter.sendMail(internalMail).catch(err => console.error("Internal email error:", err));
  
-    return res.status(200).json({ message: "Email sent successfully." });
   } catch (error) {
-    console.error("Error:", error);
-    return res.status(500).json({ error: "An error occurred while sending the email." });
+    console.error("Error saving data:", error);
+    return res.status(500).json({ error: "An error occurred while saving submission." });
   }
 });
- 
  
  
  
